@@ -1,5 +1,6 @@
 const std = @import("std");
 const config_api = @import("../config/api.zig");
+const config_system = @import("../config/system.zig");
 const ztypes = @import("../data/ztypes.zig");
 
 // Creates and returns a new HTTP client bound to the given allocator.
@@ -32,7 +33,7 @@ pub fn sendRequest(
     defer allocator.free(auth_header);
 
     const result = try client.fetch(.{
-        .location = .{ .url = config_api.API_URL },
+        .location = .{ .url = config_system.API_URL },
         .method = .POST,
         .payload = request_body,
         .response_writer = &body.writer, // streams response bytes directly into body

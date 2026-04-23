@@ -2,6 +2,7 @@ const std = @import("std");
 const ztypes = @import("../data/ztypes.zig");
 const config_sh = @import("../config/sh.zig");
 const config_api = @import("../config/api.zig");
+const config_system = @import("../config/system.zig");
 const ai_client = @import("../ai/client.zig");
 const ai_server = @import("../ai/server.zig");
 
@@ -89,7 +90,7 @@ pub fn REPL(
     // seed the conversation with a system prompt so the model knows its role
     try messages.append(allocator, .{
         .role = "system",
-        .content = try allocator.dupe(u8, config_api.SYSTEM_PROMPT),
+        .content = try allocator.dupe(u8, config_system.SYSTEM_PROMPT),
     });
 
     try stdout.print(
