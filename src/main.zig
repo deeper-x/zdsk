@@ -18,10 +18,16 @@ pub fn main(init: std.process.Init) !void {
     // args[0] is the binary name, args[1] (if present) is the model override
     const args = try init.minimal.args.toSlice(allocator);
 
-    const model = if (args.len > 1) args[1] else config_system.DEFAULT_MODEL;
+    // in case no arg is passed , set deepseek-chat as default
+    const in_model: []const u8 = if (args.len > 1) args[1] else config_system.CHAT_MODEL;
+    var sanitized_arg: []const u8 = config_system.CHAT_MODEL;
+
+    if (std.mem.eql(u8, in_model, config_system.REASONER_MODEL)) {
+        sanitized_arg = config_system.REASONER_MODEL;
+    }
 
     var client = ai_client.getInstance(io, allocator);
     defer client.deinit();
 
-    try ai_server.REPL(io, allocator, &client, api_key, model);
+    try ai_server.REPL(io, allocator, &client, api_key, sanitized_arg);
 }
