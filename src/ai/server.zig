@@ -116,13 +116,12 @@ fn readLine(allocator: std.mem.Allocator, stdout: *std.Io.Writer, prompt: []cons
                 _ = std.posix.read(fd, esc[0..1]) catch continue;
                 _ = std.posix.read(fd, esc[1..2]) catch continue;
                 if (esc[0] == '[') switch (esc[1]) {
-                    'D' => {
+                    'D', 'A' => {
                         if (cursor > 0) cursor -= 1;
                     }, // left
-                    'C' => {
+                    'C', 'B' => {
                         if (cursor < buf.items.len) cursor += 1;
                     }, // right
-                    'A', 'B' => {}, // up/down: ignore or add history later
                     else => {},
                 };
             },
