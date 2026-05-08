@@ -156,10 +156,6 @@ pub fn REPL(
     var stdout_writer = std.Io.File.stdout().writer(io, &stdout_buf);
     const stdout: *std.Io.Writer = &stdout_writer.interface;
 
-    // var stdin_buf: [4096]u8 = undefined;
-    // var stdin_reader = std.Io.File.stdin().reader(io, &stdin_buf);
-    // const stdin: *std.Io.Reader = &stdin_reader.interface;
-
     // growing list of {role, content} pairs sent to the API on every request;
     // each content string is heap-allocated and freed in the deferred block below
     var messages = std.ArrayList(ztypes.Message).empty;
@@ -188,7 +184,7 @@ pub fn REPL(
         var line_buf: std.Io.Writer.Allocating = .init(allocator);
         defer line_buf.deinit();
 
-        const input_or_null = try readLine(allocator, stdout, "You: ");
+        const input_or_null = try readLine(allocator, stdout, config_sh.PS1);
         const owned_input = input_or_null orelse break; // Ctrl-D
         defer allocator.free(owned_input);
         const input = std.mem.trim(u8, owned_input, " \r\t");

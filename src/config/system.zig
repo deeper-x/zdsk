@@ -9,3 +9,5 @@ pub const InputModel = enum {
     deepseekChat,
     deepseekReasoner,
 };
+
+pub const PS1 = "You:";

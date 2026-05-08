@@ -6,6 +6,9 @@ pub const ANSI = struct {
     pub const reset = "\x1b[0m";
 };
 
+// red PS1
+pub const PS1 = "\x1b[31mYou:\x1b[0m ";
+
 // Returns the current terminal column width by querying the OS directly.
 // Falls back to 80 if stdout is not a TTY (e.g. when output is piped)
 // or if the ioctl call fails for any other reason.
