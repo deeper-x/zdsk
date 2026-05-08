@@ -39,7 +39,7 @@ export DEEPSEEK_API_KEY="your-key-here"
 To use a different model, pass it as the first argument:
 
 ```sh
-./zig-out/bin/zdsk deepseek-reasoner
+./zig-out/bin/zdsk deepseek-chat
 ```
 
 Available models:
