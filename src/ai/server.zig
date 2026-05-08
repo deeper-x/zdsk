@@ -69,7 +69,7 @@ pub fn REPL(
     api_key: []const u8,
     model: []const u8,
 ) !void {
-    // stdout and stdin both require an explicit backing buffer in Zig 0.15;
+    // stdout and stdin both require an explicit backing buffer in Zig 0.16;
     // the buffer acts as a ring buffer that the writer flushes to the OS when full
     var stdout_buf: [4096]u8 = undefined;
     var stdout_writer = std.Io.File.stdout().writer(io, &stdout_buf);

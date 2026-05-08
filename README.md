@@ -46,8 +46,8 @@ Available models:
 
 | Model | Description |
 |---|---|
-| `deepseek-chat` | DeepSeek-V3.2, standard mode (default) |
-| `deepseek-reasoner` | DeepSeek-V3.2, thinking/reasoning mode |
+| `deepseek-chat` | DeepSeek-V3.2, standard mode |
+| `deepseek-reasoner` | DeepSeek-V3.2, thinking/reasoning mode (default) |
 
 ### In-session commands
 
