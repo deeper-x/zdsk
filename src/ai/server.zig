@@ -60,6 +60,88 @@ pub fn parseResponse(allocator: std.mem.Allocator, raw: []const u8) ![]u8 {
     return try allocator.dupe(u8, parsed.value.choices[0].message.content);
 }
 
+const RawTerm = struct {
+    orig: std.posix.termios,
+
+    pub fn enable() !RawTerm {
+        const orig = try std.posix.tcgetattr(std.posix.STDIN_FILENO);
+        var raw = orig;
+        raw.lflag.ECHO = false;
+        raw.lflag.ICANON = false;
+        raw.iflag.IXON = false;
+        raw.cc[@intFromEnum(std.posix.V.MIN)] = 1;
+        raw.cc[@intFromEnum(std.posix.V.TIME)] = 0;
+        try std.posix.tcsetattr(std.posix.STDIN_FILENO, .FLUSH, raw);
+        return .{ .orig = orig };
+    }
+
+    pub fn disable(self: *RawTerm) void {
+        std.posix.tcsetattr(std.posix.STDIN_FILENO, .FLUSH, self.orig) catch {};
+    }
+};
+
+fn readLine(allocator: std.mem.Allocator, stdout: *std.Io.Writer, prompt: []const u8) !?[]u8 {
+    var rt = try RawTerm.enable();
+    defer rt.disable();
+
+    try stdout.writeAll(prompt);
+    try stdout.flush();
+
+    var buf = std.ArrayList(u8).empty;
+
+    var cursor: usize = 0;
+
+    const fd = std.posix.STDIN_FILENO;
+
+    while (true) {
+        var seq: [4]u8 = undefined;
+        const n = try std.posix.read(fd, seq[0..1]);
+        if (n == 0) return null; // EOF / Ctrl-D
+
+        switch (seq[0]) {
+            '\r', '\n' => {
+                try stdout.writeAll("\n");
+                try stdout.flush();
+                return try buf.toOwnedSlice(allocator);
+            },
+            4 => return null, // Ctrl-D mid-line
+            127 => { // backspace
+                if (cursor > 0) {
+                    _ = buf.orderedRemove(cursor - 1);
+                    cursor -= 1;
+                }
+            },
+            '\x1b' => {
+                var esc: [2]u8 = undefined;
+                _ = std.posix.read(fd, esc[0..1]) catch continue;
+                _ = std.posix.read(fd, esc[1..2]) catch continue;
+                if (esc[0] == '[') switch (esc[1]) {
+                    'D' => {
+                        if (cursor > 0) cursor -= 1;
+                    }, // left
+                    'C' => {
+                        if (cursor < buf.items.len) cursor += 1;
+                    }, // right
+                    'A', 'B' => {}, // up/down: ignore or add history later
+                    else => {},
+                };
+            },
+            else => |ch| {
+                if (ch >= 32 and ch < 127) {
+                    try buf.insert(allocator, cursor, ch);
+                    cursor += 1;
+                }
+            },
+        }
+
+        // redraw line
+        const move_back = buf.items.len - cursor;
+        try stdout.print("\r\x1b[2K{s}{s}", .{ prompt, buf.items });
+        if (move_back > 0) try stdout.print("\x1b[{d}D", .{move_back});
+        try stdout.flush();
+    }
+}
+
 // Interactive read-eval-print loop. Runs until the user quits, maintaining
 // the full conversation history across turns so the model has context.
 pub fn REPL(
@@ -75,9 +157,9 @@ pub fn REPL(
     var stdout_writer = std.Io.File.stdout().writer(io, &stdout_buf);
     const stdout: *std.Io.Writer = &stdout_writer.interface;
 
-    var stdin_buf: [4096]u8 = undefined;
-    var stdin_reader = std.Io.File.stdin().reader(io, &stdin_buf);
-    const stdin: *std.Io.Reader = &stdin_reader.interface;
+    // var stdin_buf: [4096]u8 = undefined;
+    // var stdin_reader = std.Io.File.stdin().reader(io, &stdin_buf);
+    // const stdin: *std.Io.Reader = &stdin_reader.interface;
 
     // growing list of {role, content} pairs sent to the API on every request;
     // each content string is heap-allocated and freed in the deferred block below
@@ -102,21 +184,16 @@ pub fn REPL(
     try stdout.flush();
 
     while (true) {
-        try stdout.writeAll("You: ");
-        try stdout.flush(); // flush before blocking on stdin
-
         // read one line into a heap-growing buffer; we use Allocating here
         // because user input length is unbounded at compile time
         var line_buf: std.Io.Writer.Allocating = .init(allocator);
         defer line_buf.deinit();
 
-        _ = stdin.streamDelimiter(&line_buf.writer, '\n') catch |err| {
-            if (err == error.EndOfStream) break; // Ctrl-D
-            return err;
-        };
-        stdin.toss(1); // discard the '\n' that streamDelimiter left in the buffer
+        const input_or_null = try readLine(allocator, stdout, "You: ");
+        const owned_input = input_or_null orelse break; // Ctrl-D
+        defer allocator.free(owned_input);
+        const input = std.mem.trim(u8, owned_input, " \r\t");
 
-        const input = std.mem.trim(u8, line_buf.written(), " \r\t");
         if (input.len == 0) continue;
         if (std.mem.eql(u8, input, "/exit") or std.mem.eql(u8, input, "/quit")) break;
 
